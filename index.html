@@ -1,0 +1,2014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>घर-खर्च · Ghar-Kharch Family Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --bg:#FAF7F0;
+    --surface:#FFFFFF;
+    --surface-2:#F3EEE2;
+    --ink:#23291F;
+    --muted:#6B6456;
+    --line:#E6DEC9;
+    --teal:#16343A;
+    --teal-2:#20505A;
+    --gold:#C98A1E;
+    --gold-soft:#F3E3BC;
+    --green:#3F7D58;
+    --green-soft:#E1EEE3;
+    --rust:#B5482E;
+    --rust-soft:#F6E1DA;
+    --shadow: 0 1px 2px rgba(35,41,31,0.06), 0 6px 20px rgba(35,41,31,0.06);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#151915;
+      --surface:#1D2320;
+      --surface-2:#262C27;
+      --ink:#EFEAE0;
+      --muted:#A6A090;
+      --line:#343B33;
+      --teal:#7FC3CE;
+      --teal-2:#9FD6DF;
+      --gold:#E8B657;
+      --gold-soft:#3B321C;
+      --green:#7FCB99;
+      --green-soft:#1E2E23;
+      --rust:#E58A70;
+      --rust-soft:#3A231D;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#151915;
+    --surface:#1D2320;
+    --surface-2:#262C27;
+    --ink:#EFEAE0;
+    --muted:#A6A090;
+    --line:#343B33;
+    --teal:#7FC3CE;
+    --teal-2:#9FD6DF;
+    --gold:#E8B657;
+    --gold-soft:#3B321C;
+    --green:#7FCB99;
+    --green-soft:#1E2E23;
+    --rust:#E58A70;
+    --rust-soft:#3A231D;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  html,body{ height:100%; }
+  html{ scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans','Noto Sans Devanagari',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .font-display{ font-family:'Fraunces','Noto Sans Devanagari',serif; font-optical-sizing:auto; }
+  .ledger-lines{
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--line) 28px);
+  }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+  .no-scrollbar::-webkit-scrollbar{ display:none; }
+  input:focus, select:focus, button:focus-visible, textarea:focus{
+    outline: 2px solid var(--gold); outline-offset:1px;
+  }
+  * { box-sizing: border-box; }
+  .stamp{
+    border:1.5px dashed var(--line);
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react,env">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ---------------------------------------------------------------------- */
+/* ICONS (lucide-style line icons, hand-drawn to avoid external deps)     */
+/* ---------------------------------------------------------------------- */
+const ICONS = {
+  home: "M3 11.5 12 4l9 7.5M5 10v9.5a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10",
+  trendUp: "M4 17 10 11l4 4 8-9M14 8h6v6",
+  trendDown: "M4 7l6 6 4-4 8 9M22 12v6h-6",
+  piggy: "M5 12a5 5 0 0 1 5-5h4.5a4.5 4.5 0 0 1 4.4 3.5L20 11h1.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H20l-.6 2.4A2 2 0 0 1 17.5 18H16v2h-2v-2H9v2H7v-2.3A5 5 0 0 1 5 13.5V12Zm4-2h.01",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-4a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-4a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.5-1.5a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5ZM2.5 20v-1.2c0-2.6 2.9-4.3 6.5-4.3s6.5 1.7 6.5 4.3V20M16 14.6c2.9.3 5 1.8 5 4.1V20",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.2 0 4-4 4-9s-1.8-9-4-9-4 4-4 9 1.8 9 4 9ZM3.5 9h17M3.5 15h17",
+  plus: "M12 5v14M5 12h14",
+  edit: "m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z",
+  trash: "M4 7h16M9 7V4h6v3m-1 0v13a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V7h6ZM9.5 11v6M14.5 11v6",
+  x: "M6 6l12 12M18 6 6 18",
+  alert: "M12 3 2 20h20L12 3Zm0 6.5V14m0 3.2h.01",
+  check: "M4 12.5 9.5 18 20 6",
+  eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+  menu: "M3 6h18M3 12h18M3 18h18",
+  wallet: "M3 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm0 0 2.4-3.6A2 2 0 0 1 7.1 3.4H16M16 13.5h.01M15 13.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z",
+  calendar: "M7 3v3M17 3v3M4 9h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z",
+  shield: "M12 3 4.5 6v6c0 4.6 3.2 7.8 7.5 9 4.3-1.2 7.5-4.4 7.5-9V6L12 3Z",
+  chevron: "m6 9 6 6 6-6",
+  download: "M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5M4 19h16",
+  lock: "M6 11V8a6 6 0 1 1 12 0v3m-13 0h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-9v5m0-8h.01",
+};
+function Icon({ name, size = 20, className = "", strokeWidth = 2 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d={ICONS[name] || ""} />
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* TRANSLATIONS                                                            */
+/* ---------------------------------------------------------------------- */
+const T = {
+  en: {
+    appName: "Ghar-Kharch", appSub: "Family Ledger",
+    login: "Sign in", username: "User ID", password: "Password", signIn: "Sign in to your ledger",
+    loginHelp: "Ask the admin for your User ID and password.", invalidLogin: "That User ID or password doesn't match our records.",
+    demoAccounts: "Demo accounts",
+    dashboard: "Dashboard", income: "Income", expenses: "Expenses", budget: "Budget", savings: "Savings", users: "Family Users",
+    totalIncome: "Total Income", totalExpenses: "Total Expenses", totalSavings: "Total Savings", remainingBudget: "Remaining Budget",
+    thisMonth: "this month", ofBudgetUsed: "of budget used",
+    monthlyTrend: "Income vs Expenses", last6: "Last 6 months",
+    budgetAlert: "Budget alert", budgetAlertMsg: "You've used more than 80% of this month's budget.",
+    addIncome: "Add income", addExpense: "Add expense", addDeposit: "Add deposit", addGoal: "Add goal", addUser: "Add user",
+    member: "Family member", date: "Date", amount: "Amount", description: "Description", category: "Category",
+    actions: "Actions", viewOnly: "View-only", noEntriesIncome: "No income recorded yet.", noEntriesExpense: "No expenses recorded yet.",
+    save: "Save", cancel: "Cancel", delete: "Delete", edit: "Edit", close: "Close",
+    confirmDeleteTitle: "Delete this entry?", confirmDeleteMsg: "This can't be undone.",
+    name: "Full name", role: "Role", permission: "Permission", admin: "Admin", memberRole: "Member",
+    editAdd: "Edit / Add", viewOnlyPerm: "View-only", status: "Status",
+    monthlyLimit: "Monthly limit", spent: "Spent", remaining: "Remaining", setBudget: "Set budgets",
+    goal: "Goal name", target: "Target amount", saved: "Saved", progress: "Progress",
+    logout: "Log out", welcome: "Welcome back", loggedInAs: "Signed in as",
+    filterMonth: "Month", all: "All months",
+    viewOnlyBanner: "You have view-only access. Ask the admin for edit permission to add or change records.",
+    required: "This field is required.", positiveNumber: "Enter an amount greater than zero.",
+    entriesCount: "entries", noUsersYet: "No family members yet.",
+    editUser: "Edit user", newUser: "New family member",
+    totalBudget: "Total monthly budget", categoryBreakdown: "Spending by category",
+    recentActivity: "Recent activity", noActivity: "Nothing recorded yet.",
+    balance: "Net balance",
+    janShort:"Jan",febShort:"Feb",marShort:"Mar",aprShort:"Apr",mayShort:"May",junShort:"Jun",
+    julShort:"Jul",augShort:"Aug",sepShort:"Sep",octShort:"Oct",novShort:"Nov",decShort:"Dec",
+    fillAllFields: "Please fill in all required fields.",
+    deposits: "Deposits", noGoals: "No savings goals yet.", addNewGoal: "New goal",
+    goalReached: "Goal reached!",
+    languageLabel: "Language",
+    incomeSubtitle: "Every rupee that comes into the family",
+    expenseSubtitle: "Everything the family spends, by category",
+    budgetSubtitle: "Set limits per category and track what's left",
+    savingsSubtitle: "Track money set aside toward family goals",
+    usersSubtitle: "Manage who can see and edit the family ledger",
+    dashboardSubtitle: "A quick look at where the family stands this month",
+    passwordHint: "Passwords are stored locally for this demo only.",
+    exportCsv: "Export CSV",
+    manageCategories: "Manage categories", addCategory: "Add category",
+    categoryNameEn: "Category name (English)", categoryNameMr: "Category name (Marathi)",
+    categoryColor: "Colour", cannotDeleteCategory: "Can't delete this category",
+    recordsUsingCategory: "expense record(s) still use it. Move or delete those first.",
+    categoryExists: "A category like this already exists.", noCategories: "No categories yet.",
+    existingCategories: "Existing categories", viewingMonth: "Viewing",
+    allTime: "All time",
+    connecting: "Connecting to your family's shared ledger...",
+    connectionError: "Couldn't connect", connectionErrorMsg: "We couldn't reach the shared database. Check your internet connection, or that the Firebase setup in the file is correct.",
+    retry: "Try again", liveSync: "Live · syncing", localOnly: "This device only",
+    email: "Email", createAdminTitle: "Set up your admin account",
+    createAdminSubtitle: "No account exists on this device yet. Create the first admin login to get started.",
+    createAccount: "Create account", initialPassword: "Password",
+    noProfileTitle: "Your account isn't set up yet",
+    noProfileMsg: "You're signed in, but the admin hasn't added you to the family ledger yet. Ask them to add your email from the Users page.",
+    signOutAndTryAnother: "Sign out",
+    changePassword: "Change password", currentPassword: "Current password", newPassword: "New password",
+    confirmNewPassword: "Confirm new password", updatePassword: "Update password",
+    passwordUpdated: "Password updated.", passwordsDontMatch: "New passwords don't match.",
+    resetPassword: "Send reset link", resetPasswordSent: "Reset link sent to their email.",
+    removeAccess: "Remove access", confirmRemoveTitle: "Remove this person's access?",
+    confirmRemoveMsg: "They'll no longer be able to sign in or see the ledger. This can't be undone from here.",
+    wrongPassword: "That password is incorrect.", userNotFound: "No account found with that email.",
+    invalidEmail: "That doesn't look like a valid email address.", emailInUse: "That email is already registered.",
+    weakPassword: "Use at least 6 characters for the password.", tooManyRequests: "Too many attempts — please wait a bit and try again.",
+    genericError: "Something went wrong. Please try again.",
+    initialPasswordHint: "They can change this themselves later, or you can send them a reset link any time.",
+    myAccount: "My account",
+  },
+  mr: {
+    appName: "घर-खर्च", appSub: "कौटुंबिक हिशोब",
+    login: "प्रवेश करा", username: "युजर आयडी", password: "पासवर्ड", signIn: "तुमच्या हिशोबात प्रवेश करा",
+    loginHelp: "युजर आयडी आणि पासवर्डसाठी अ‍ॅडमिनला विचारा.", invalidLogin: "युजर आयडी किंवा पासवर्ड जुळत नाही.",
+    demoAccounts: "डेमो खाती",
+    dashboard: "डॅशबोर्ड", income: "उत्पन्न", expenses: "खर्च", budget: "बजेट", savings: "बचत", users: "कुटुंबातील सदस्य",
+    totalIncome: "एकूण उत्पन्न", totalExpenses: "एकूण खर्च", totalSavings: "एकूण बचत", remainingBudget: "उरलेले बजेट",
+    thisMonth: "या महिन्यात", ofBudgetUsed: "बजेट वापरले",
+    monthlyTrend: "उत्पन्न वि. खर्च", last6: "मागील ६ महिने",
+    budgetAlert: "बजेट इशारा", budgetAlertMsg: "या महिन्याचे ८०% पेक्षा जास्त बजेट वापरले गेले आहे.",
+    addIncome: "उत्पन्न जोडा", addExpense: "खर्च जोडा", addDeposit: "जमा जोडा", addGoal: "उद्दिष्ट जोडा", addUser: "सदस्य जोडा",
+    member: "कुटुंब सदस्य", date: "दिनांक", amount: "रक्कम", description: "तपशील", category: "प्रकार",
+    actions: "क्रिया", viewOnly: "फक्त पाहण्यासाठी", noEntriesIncome: "अजून उत्पन्न नोंदवलेले नाही.", noEntriesExpense: "अजून खर्च नोंदवलेला नाही.",
+    save: "जतन करा", cancel: "रद्द करा", delete: "काढून टाका", edit: "संपादित करा", close: "बंद करा",
+    confirmDeleteTitle: "ही नोंद काढायची का?", confirmDeleteMsg: "ही क्रिया पूर्ववत करता येणार नाही.",
+    name: "पूर्ण नाव", role: "भूमिका", permission: "परवानगी", admin: "अ‍ॅडमिन", memberRole: "सदस्य",
+    editAdd: "संपादन/जोडणी", viewOnlyPerm: "फक्त पाहणे", status: "स्थिती",
+    monthlyLimit: "मासिक मर्यादा", spent: "खर्च झाले", remaining: "शिल्लक", setBudget: "बजेट सेट करा",
+    goal: "उद्दिष्टाचे नाव", target: "लक्ष्य रक्कम", saved: "जमा झाले", progress: "प्रगती",
+    logout: "बाहेर पडा", welcome: "पुन्हा स्वागत आहे", loggedInAs: "प्रवेश केला आहे",
+    filterMonth: "महिना", all: "सर्व महिने",
+    viewOnlyBanner: "तुमच्याकडे फक्त पाहण्याची परवानगी आहे. नोंदी जोडण्यासाठी/बदलण्यासाठी अ‍ॅडमिनला विचारा.",
+    required: "ही माहिती भरणे आवश्यक आहे.", positiveNumber: "शून्यपेक्षा जास्त रक्कम टाका.",
+    entriesCount: "नोंदी", noUsersYet: "अजून कुटुंबातील सदस्य नाहीत.",
+    editUser: "सदस्य संपादित करा", newUser: "नवीन कुटुंब सदस्य",
+    totalBudget: "एकूण मासिक बजेट", categoryBreakdown: "प्रकारानुसार खर्च",
+    recentActivity: "अलीकडील हालचाल", noActivity: "अजून काही नोंदवलेले नाही.",
+    balance: "निव्वळ शिल्लक",
+    janShort:"जाने",febShort:"फेब्रु",marShort:"मार्च",aprShort:"एप्रि",mayShort:"मे",junShort:"जून",
+    julShort:"जुलै",augShort:"ऑग",sepShort:"सप्टें",octShort:"ऑक्टो",novShort:"नोव्हें",decShort:"डिसें",
+    fillAllFields: "कृपया सर्व आवश्यक माहिती भरा.",
+    deposits: "जमा रक्कम", noGoals: "अजून बचत उद्दिष्टे नाहीत.", addNewGoal: "नवीन उद्दिष्ट",
+    goalReached: "उद्दिष्ट पूर्ण झाले!",
+    languageLabel: "भाषा",
+    incomeSubtitle: "कुटुंबात येणारा प्रत्येक रुपया",
+    expenseSubtitle: "कुटुंबाचा प्रकारानुसार सर्व खर्च",
+    budgetSubtitle: "प्रत्येक प्रकारासाठी मर्यादा ठरवा आणि शिल्लक पाहा",
+    savingsSubtitle: "कौटुंबिक उद्दिष्टांसाठी बाजूला ठेवलेली रक्कम पाहा",
+    usersSubtitle: "कोण हिशोब पाहू शकतो आणि संपादित करू शकतो ते ठरवा",
+    dashboardSubtitle: "या महिन्यात कुटुंबाची आर्थिक स्थिती एका दृष्टीक्षेपात",
+    passwordHint: "हा फक्त डेमो आहे — पासवर्ड फक्त तुमच्या ब्राउझरमध्ये साठवले जातात.",
+    exportCsv: "CSV एक्सपोर्ट करा",
+    manageCategories: "प्रकार व्यवस्थापित करा", addCategory: "प्रकार जोडा",
+    categoryNameEn: "प्रकाराचे नाव (इंग्रजी)", categoryNameMr: "प्रकाराचे नाव (मराठी)",
+    categoryColor: "रंग", cannotDeleteCategory: "हा प्रकार काढता येणार नाही",
+    recordsUsingCategory: "खर्चाच्या नोंदींमध्ये अजूनही वापरला आहे. आधी त्या नोंदी बदला किंवा काढा.",
+    categoryExists: "असा प्रकार आधीच अस्तित्वात आहे.", noCategories: "अजून प्रकार नाहीत.",
+    existingCategories: "सध्याचे प्रकार", viewingMonth: "पाहत आहात",
+    allTime: "सर्व कालावधी",
+    connecting: "तुमच्या कुटुंबाच्या सामायिक हिशोबाशी जोडत आहे...",
+    connectionError: "जोडता आले नाही", connectionErrorMsg: "सामायिक डेटाबेसशी जोडता आले नाही. इंटरनेट कनेक्शन तपासा, किंवा फाईलमधील Firebase सेटअप बरोबर आहे का ते पाहा.",
+    retry: "पुन्हा प्रयत्न करा", liveSync: "लाईव्ह · सिंक होत आहे", localOnly: "फक्त याच डिव्हाइसवर",
+    email: "ईमेल", createAdminTitle: "तुमचे अ‍ॅडमिन खाते तयार करा",
+    createAdminSubtitle: "या डिव्हाइसवर अजून कोणतेही खाते नाही. सुरुवात करण्यासाठी पहिले अ‍ॅडमिन खाते तयार करा.",
+    createAccount: "खाते तयार करा", initialPassword: "पासवर्ड",
+    noProfileTitle: "तुमचे खाते अजून सेट केलेले नाही",
+    noProfileMsg: "तुम्ही साइन इन आहात, पण अ‍ॅडमिनने तुम्हाला अजून कौटुंबिक हिशोबात जोडलेले नाही. युजर्स पानावरून तुमचा ईमेल जोडण्यास त्यांना सांगा.",
+    signOutAndTryAnother: "बाहेर पडा",
+    changePassword: "पासवर्ड बदला", currentPassword: "सध्याचा पासवर्ड", newPassword: "नवीन पासवर्ड",
+    confirmNewPassword: "नवीन पासवर्ड पुन्हा टाका", updatePassword: "पासवर्ड अद्ययावत करा",
+    passwordUpdated: "पासवर्ड अद्ययावत झाला.", passwordsDontMatch: "नवीन पासवर्ड जुळत नाहीत.",
+    resetPassword: "रीसेट लिंक पाठवा", resetPasswordSent: "त्यांच्या ईमेलवर रीसेट लिंक पाठवली आहे.",
+    removeAccess: "प्रवेश काढून टाका", confirmRemoveTitle: "या व्यक्तीचा प्रवेश काढायचा का?",
+    confirmRemoveMsg: "त्यांना यापुढे साइन इन करता येणार नाही किंवा हिशोब दिसणार नाही. ही क्रिया इथून पूर्ववत करता येणार नाही.",
+    wrongPassword: "पासवर्ड चुकीचा आहे.", userNotFound: "या ईमेलचे कोणतेही खाते सापडले नाही.",
+    invalidEmail: "हा वैध ईमेल पत्ता दिसत नाही.", emailInUse: "हा ईमेल आधीच नोंदणीकृत आहे.",
+    weakPassword: "पासवर्डसाठी किमान ६ अक्षरे वापरा.", tooManyRequests: "खूप प्रयत्न झाले — थोडा वेळ थांबून पुन्हा प्रयत्न करा.",
+    genericError: "काहीतरी चुकले. कृपया पुन्हा प्रयत्न करा.",
+    initialPasswordHint: "ते नंतर स्वतः हा पासवर्ड बदलू शकतात, किंवा तुम्ही केव्हाही रीसेट लिंक पाठवू शकता.",
+    myAccount: "माझे खाते",
+  }
+};
+
+const DEFAULT_CATEGORIES = [
+  { id: "groceries", en: "Groceries", mr: "किराणा", color: "#3F7D58" },
+  { id: "utility", en: "Utility Bills", mr: "वीज-पाणी बिल", color: "#2E6E85" },
+  { id: "education", en: "Education", mr: "शिक्षण", color: "#6E4FA0" },
+  { id: "health", en: "Health", mr: "आरोग्य", color: "#B5482E" },
+  { id: "transport", en: "Transport", mr: "वाहतूक", color: "#C98A1E" },
+  { id: "entertainment", en: "Entertainment", mr: "करमणूक", color: "#B0568E" },
+  { id: "others", en: "Others", mr: "इतर", color: "#6B6456" },
+];
+const CATEGORY_PALETTE = ["#3F7D58","#2E6E85","#6E4FA0","#B5482E","#C98A1E","#B0568E","#1F6F5C","#8A4B2E","#3B6FB0","#A83E6C","#4E7A2E","#6B6456"];
+const FALLBACK_CATEGORY = { id: "_unknown", en: "Others", mr: "इतर", color: "#6B6456" };
+
+const MONTH_KEYS = ["janShort","febShort","marShort","aprShort","mayShort","junShort","julShort","augShort","sepShort","octShort","novShort","decShort"];
+
+/* ---------------------------------------------------------------------- */
+/* UTILITIES                                                               */
+/* ---------------------------------------------------------------------- */
+const uid = () => Math.random().toString(36).slice(2, 10);
+const fmtINR = (n) => "\u20B9" + Math.round(n).toLocaleString("en-IN");
+const monthKey = (dateStr) => dateStr.slice(0, 7); // YYYY-MM
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const CURRENT_MONTH = todayStr().slice(0, 7);
+
+function monthLabel(key, lang) {
+  const [y, m] = key.split("-");
+  return T[lang][MONTH_KEYS[parseInt(m, 10) - 1]] + " " + y.slice(2);
+}
+
+function availableMonths(lists) {
+  const set = new Set([CURRENT_MONTH]);
+  lists.forEach((arr) => arr.forEach((item) => set.add(monthKey(item.date))));
+  return Array.from(set).sort().reverse();
+}
+
+function lastNMonths(n, from) {
+  const [y, m] = from.split("-").map(Number);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    let mm = m - i, yy = y;
+    while (mm <= 0) { mm += 12; yy -= 1; }
+    out.push(yy + "-" + String(mm).padStart(2, "0"));
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------- */
+/* SEED DATA                                                               */
+/* ---------------------------------------------------------------------- */
+function seedData() {
+  const months = lastNMonths(6, CURRENT_MONTH);
+  const incomes = [];
+  months.forEach((mo, idx) => {
+    incomes.push({ id: uid(), member: "Rajesh Deshmukh", date: mo + "-01", amount: 62000, description: "Monthly Salary" });
+    incomes.push({ id: uid(), member: "Sunita Deshmukh", date: mo + "-03", amount: 28000, description: "Monthly Salary" });
+    if (idx % 2 === 0) incomes.push({ id: uid(), member: "Rajesh Deshmukh", date: mo + "-15", amount: 4500, description: "Freelance consulting" });
+  });
+
+  const expenseTemplate = [
+    ["groceries", 6800, "Weekly groceries - D-Mart"],
+    ["groceries", 2100, "Vegetables & fruits"],
+    ["utility", 2400, "Electricity bill"],
+    ["utility", 850, "Water bill"],
+    ["education", 4500, "Aarav's tuition fees"],
+    ["health", 1200, "Pharmacy & checkup"],
+    ["transport", 2000, "Petrol & auto fares"],
+    ["entertainment", 900, "Movie & dining out"],
+    ["others", 1100, "Miscellaneous household"],
+  ];
+  const expenses = [];
+  months.forEach((mo, idx) => {
+    expenseTemplate.forEach(([cat, amt, desc], i) => {
+      const variance = 1 + ((idx + i) % 3 - 1) * 0.08;
+      expenses.push({
+        id: uid(), category: cat, amount: Math.round(amt * variance),
+        member: i % 2 === 0 ? "Sunita Deshmukh" : "Rajesh Deshmukh",
+        date: mo + "-" + String(5 + (i % 20)).padStart(2, "0"),
+        description: desc,
+      });
+    });
+  });
+
+  const budgets = {
+    groceries: 9000, utility: 3500, education: 5000, health: 2500, transport: 2500, entertainment: 1500, others: 1500,
+  };
+
+  const savingsGoals = [
+    {
+      id: "g1", name_en: "Family Emergency Fund", name_mr: "कौटुंबिक आपत्कालीन निधी", target: 150000,
+      deposits: months.map((mo, i) => ({ id: uid(), month: mo, amount: 5000 + i * 500, date: mo + "-28" })),
+    },
+    {
+      id: "g2", name_en: "Diwali Family Trip", name_mr: "दिवाळी कौटुंबिक सहल", target: 60000,
+      deposits: months.slice(-4).map((mo, i) => ({ id: uid(), month: mo, amount: 3000 + i * 800, date: mo + "-20" })),
+    },
+  ];
+
+  return { incomes, expenses, budgets, savingsGoals, categories: DEFAULT_CATEGORIES };
+}
+
+function loadLocalState() {
+  try {
+    const raw = localStorage.getItem("ghar_kharch_v1");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+function saveLocalState(state) {
+  try { localStorage.setItem("ghar_kharch_v1", JSON.stringify(state)); } catch (e) {}
+}
+
+/* ---------------------------------------------------------------------- */
+/* FIREBASE (free shared backend) — fill these in to sync every device.   */
+/* See the setup guide that came with this file.                          */
+/* ---------------------------------------------------------------------- */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDQwbXx9S8IoW3kQoMhLWpzblrKex6dYXI",
+  authDomain: "family-ledger-e9463.firebaseapp.com",
+  projectId: "family-ledger-e9463",
+  storageBucket: "family-ledger-e9463.firebasestorage.app",
+  messagingSenderId: "119872797847",
+  appId: "1:119872797847:web:caed9e2fc1312920c4bdd2",
+};
+const FIREBASE_READY = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY");
+
+/**
+ * Keeps one shared document ("household/shared") in sync across every
+ * device once a real, authenticated session exists. In local mode (no
+ * Firebase configured) it just uses this browser's storage.
+ */
+function useSharedData(enabled) {
+  const [data, setDataRaw] = useState(null);
+  const [status, setStatus] = useState(FIREBASE_READY ? "connecting" : "local");
+  const docRef = useRef(null);
+
+  useEffect(() => {
+    if (!FIREBASE_READY) {
+      setDataRaw(loadLocalState() || seedData());
+      setStatus("local");
+      return;
+    }
+    if (!enabled) { setStatus("connecting"); return; }
+    let unsubSnap = null;
+    try {
+      const db = firebase.firestore();
+      const ref = db.collection("household").doc("shared");
+      docRef.current = ref;
+      unsubSnap = ref.onSnapshot(
+        (snap) => {
+          if (snap.exists) {
+            setDataRaw(snap.data());
+            setStatus("ready");
+          } else {
+            const seed = seedData();
+            ref.set(seed).then(() => { setDataRaw(seed); setStatus("ready"); });
+          }
+        },
+        () => setStatus("error")
+      );
+    } catch (e) {
+      setStatus("error");
+    }
+    return () => { if (unsubSnap) unsubSnap(); };
+  }, [enabled]);
+
+  function setData(updater) {
+    setDataRaw((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (status === "local") {
+        saveLocalState(next);
+      } else if (status === "ready" && docRef.current) {
+        docRef.current.set(next).catch(() => {});
+      }
+      return next;
+    });
+  }
+
+  return { data, setData, status };
+}
+
+/* ---------------------------------------------------------------------- */
+/* AUTHENTICATION                                                          */
+/* Local mode: a small per-device account store (no backend configured).  */
+/* Firebase mode: real Firebase Authentication + Firestore profiles — no  */
+/* passwords are ever stored in plain text, and no demo credentials ship. */
+/* ---------------------------------------------------------------------- */
+function mapAuthError(e) {
+  const code = e && e.code;
+  if (code === "auth/wrong-password" || code === "auth/invalid-credential" || code === "auth/invalid-login-credentials") return "wrongPassword";
+  if (code === "auth/user-not-found") return "userNotFound";
+  if (code === "auth/invalid-email") return "invalidEmail";
+  if (code === "auth/email-already-in-use") return "emailInUse";
+  if (code === "auth/weak-password") return "weakPassword";
+  if (code === "auth/too-many-requests") return "tooManyRequests";
+  return "genericError";
+}
+
+function useLocalAuth() {
+  const [users, setUsersRaw] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem("ghar_kharch_local_users") || "[]"); } catch (e) {}
+    setUsersRaw(list);
+    try { setCurrentUserId(localStorage.getItem("ghar_kharch_local_session") || null); } catch (e) {}
+  }, []);
+
+  function persistUsers(next) {
+    setUsersRaw(next);
+    try { localStorage.setItem("ghar_kharch_local_users", JSON.stringify(next)); } catch (e) {}
+  }
+  function persistSession(id) {
+    setCurrentUserId(id);
+    try {
+      if (id) localStorage.setItem("ghar_kharch_local_session", id);
+      else localStorage.removeItem("ghar_kharch_local_session");
+    } catch (e) {}
+  }
+
+  const currentUser = users && currentUserId ? users.find((u) => u.id === currentUserId) || null : null;
+  const status = users === null ? "loading" : users.length === 0 ? "needsBootstrap" : currentUser ? "ready" : "signedOut";
+
+  return {
+    mode: "local", status, currentUser, usersList: users,
+    bootstrapAdmin: ({ name, username, password }) => {
+      const u = { id: uid(), name, username: username.trim(), password, role: "admin", permission: "edit" };
+      persistUsers([u]);
+      persistSession(u.id);
+      return Promise.resolve();
+    },
+    signIn: (username, password) => {
+      const found = (users || []).find((u) => u.username === username.trim() && u.password === password);
+      if (!found) return Promise.reject("wrongPassword");
+      persistSession(found.id);
+      return Promise.resolve();
+    },
+    signOut: () => persistSession(null),
+    addUser: (u) => {
+      persistUsers([...(users || []), { ...u, id: uid() }]);
+      return Promise.resolve();
+    },
+    updateUser: (u) => {
+      persistUsers((users || []).map((x) => (x.id === u.id ? u : x)));
+      return Promise.resolve();
+    },
+    deleteUser: (id) => {
+      persistUsers((users || []).filter((x) => x.id !== id));
+      if (id === currentUserId) persistSession(null);
+      return Promise.resolve();
+    },
+    resetPasswordEmail: null,
+    changeOwnPassword: (currentPassword, newPassword) => {
+      if (!currentUser || currentUser.password !== currentPassword) return Promise.reject("wrongPassword");
+      const updated = { ...currentUser, password: newPassword };
+      persistUsers((users || []).map((x) => (x.id === currentUser.id ? updated : x)));
+      return Promise.resolve();
+    },
+  };
+}
+
+function useFirebaseAuth() {
+  const [authUser, setAuthUser] = useState(undefined); // undefined = loading, null = signed out
+  const [profile, setProfile] = useState(undefined); // undefined = loading, null = no profile doc
+  const [usersList, setUsersList] = useState(null);
+
+  useEffect(() => {
+    if (!FIREBASE_READY) return;
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    const unsub = firebase.auth().onAuthStateChanged((u) => {
+      setAuthUser(u || null);
+      if (!u) { setProfile(null); setUsersList(null); }
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!FIREBASE_READY || !authUser) return;
+    const unsub = firebase.firestore().collection("profiles").doc(authUser.uid).onSnapshot(
+      (snap) => setProfile(snap.exists ? { id: snap.id, ...snap.data() } : null),
+      () => setProfile(null)
+    );
+    return unsub;
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!FIREBASE_READY || !profile || profile.role !== "admin") { setUsersList(null); return; }
+    const unsub = firebase.firestore().collection("profiles").onSnapshot(
+      (snap) => setUsersList(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      () => {}
+    );
+    return unsub;
+  }, [profile]);
+
+  const status = authUser === undefined ? "loading" : authUser === null ? "signedOut" : profile === undefined ? "loading" : profile === null ? "noProfile" : "ready";
+
+  return {
+    mode: "firebase", status,
+    currentUser: profile && authUser ? { ...profile, id: authUser.uid, email: authUser.email } : null,
+    usersList,
+    bootstrapAdmin: null,
+    signIn: (email, password) => firebase.auth().signInWithEmailAndPassword(email.trim(), password).catch((e) => { throw mapAuthError(e); }),
+    signOut: () => firebase.auth().signOut(),
+    addUser: ({ name, email, password, role, permission }) => {
+      const secondaryApp = firebase.initializeApp(FIREBASE_CONFIG, "Secondary-" + Date.now());
+      const secondaryAuth = secondaryApp.auth();
+      return secondaryAuth.createUserWithEmailAndPassword(email.trim(), password)
+        .then((cred) => {
+          const newUid = cred.user.uid;
+          return secondaryAuth.signOut()
+            .then(() => secondaryApp.delete())
+            .then(() => firebase.firestore().collection("profiles").doc(newUid).set({ name, email: email.trim(), role, permission }));
+        })
+        .catch((e) => { throw mapAuthError(e); });
+    },
+    updateUser: (u) => firebase.firestore().collection("profiles").doc(u.id).set(
+      { name: u.name, email: u.email, role: u.role, permission: u.permission }, { merge: true }
+    ),
+    deleteUser: (id) => firebase.firestore().collection("profiles").doc(id).delete(),
+    resetPasswordEmail: (email) => firebase.auth().sendPasswordResetEmail(email),
+    changeOwnPassword: (currentPassword, newPassword) => {
+      const user = firebase.auth().currentUser;
+      const cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+      return user.reauthenticateWithCredential(cred)
+        .then(() => user.updatePassword(newPassword))
+        .catch((e) => { throw mapAuthError(e); });
+    },
+  };
+}
+
+function useAuthSystem() {
+  const local = useLocalAuth();
+  const remote = useFirebaseAuth();
+  return FIREBASE_READY ? remote : local;
+}
+
+/* ---------------------------------------------------------------------- */
+/* SMALL UI PRIMITIVES                                                     */
+/* ---------------------------------------------------------------------- */
+function Button({ children, variant = "primary", size = "md", className = "", ...rest }) {
+  const base = "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+  const sizes = { md: "px-4 py-2 text-sm", sm: "px-3 py-1.5 text-xs", lg: "px-5 py-2.5 text-base" };
+  const variants = {
+    primary: "text-white",
+    ghost: "bg-transparent hover:bg-[var(--surface-2)]",
+    danger: "bg-transparent text-[var(--rust)] hover:bg-[var(--rust-soft)]",
+    outline: "border",
+  };
+  const style = variant === "primary" ? { background: "var(--teal)" } :
+    variant === "outline" ? { borderColor: "var(--line)", color: "var(--ink)" } : {};
+  return (
+    <button className={base + " " + sizes[size] + " " + variants[variant] + " " + className} style={style} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, className = "", style = {} }) {
+  return (
+    <div className={"rounded-2xl bg-[var(--surface)] border border-[var(--line)] " + className}
+      style={{ boxShadow: "var(--shadow)", ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={"w-full " + (wide ? "sm:max-w-lg" : "sm:max-w-md") + " bg-[var(--surface)] rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto"}
+        style={{ boxShadow: "var(--shadow)" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--line)] sticky top-0 bg-[var(--surface)] z-10">
+          <h3 className="font-display text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-[var(--surface-2)]"><Icon name="x" size={18} /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children, error }) {
+  return (
+    <label className="block mb-3.5">
+      <span className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--muted)" }}>{label}</span>
+      {children}
+      {error && <span className="block text-xs mt-1" style={{ color: "var(--rust)" }}>{error}</span>}
+    </label>
+  );
+}
+const inputCls = "w-full rounded-lg border px-3 py-2 text-sm bg-[var(--surface)]";
+const inputStyle = { borderColor: "var(--line)", color: "var(--ink)" };
+
+function Badge({ children, color, soft }) {
+  return (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+      style={{ background: soft || "var(--surface-2)", color: color || "var(--ink)" }}>
+      {children}
+    </span>
+  );
+}
+
+function EmptyState({ icon, text }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-14 text-center" style={{ color: "var(--muted)" }}>
+      <Icon name={icon} size={32} className="mb-3 opacity-50" />
+      <p className="text-sm">{text}</p>
+    </div>
+  );
+}
+
+function ConfirmDialog({ t, onConfirm, onCancel }) {
+  return (
+    <Modal title={t.confirmDeleteTitle} onClose={onCancel}>
+      <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>{t.confirmDeleteMsg}</p>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onCancel}>{t.cancel}</Button>
+        <Button variant="danger" onClick={onConfirm} className="bg-[var(--rust-soft)]">{t.delete}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* CHART                                                                   */
+/* ---------------------------------------------------------------------- */
+function MonthlyChart({ months, lang, t }) {
+  const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
+  const W = 640, H = 240, padL = 46, padB = 30, padT = 10;
+  const chartW = W - padL - 16, chartH = H - padB - padT;
+  const groupW = chartW / months.length;
+  const barW = Math.min(20, groupW * 0.28);
+
+  const yTicks = 4;
+  const gridLines = Array.from({ length: yTicks + 1 }, (_, i) => i / yTicks);
+
+  return (
+    <div className="overflow-x-auto no-scrollbar">
+      <svg viewBox={"0 0 " + W + " " + H} className="w-full min-w-[520px]" style={{ height: 240 }}>
+        {gridLines.map((f, i) => {
+          const y = padT + chartH * (1 - f);
+          return (
+            <g key={i}>
+              <line x1={padL} x2={W - 10} y1={y} y2={y} stroke="var(--line)" strokeWidth="1" />
+              <text x={padL - 8} y={y + 3} textAnchor="end" fontSize="9" fill="var(--muted)">
+                {f === 0 ? "0" : Math.round((max * f) / 1000) + "k"}
+              </text>
+            </g>
+          );
+        })}
+        {months.map((m, i) => {
+          const x0 = padL + i * groupW;
+          const hInc = (m.income / max) * chartH;
+          const hExp = (m.expense / max) * chartH;
+          const cx = x0 + groupW / 2;
+          return (
+            <g key={i}>
+              <rect x={cx - barW - 3} y={padT + chartH - hInc} width={barW} height={Math.max(hInc,1)} rx="3" fill="var(--green)" />
+              <rect x={cx + 3} y={padT + chartH - hExp} width={barW} height={Math.max(hExp,1)} rx="3" fill="var(--rust)" />
+              <text x={cx} y={H - 10} textAnchor="middle" fontSize="10" fill="var(--muted)">{monthLabel(m.key, lang)}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="flex items-center gap-5 mt-2 px-1">
+        <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--green)" }}></span>{t.income}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+          <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--rust)" }}></span>{t.expenses}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ pct, color }) {
+  const clamped = Math.min(100, Math.max(0, pct));
+  return (
+    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+      <div className="h-full rounded-full transition-all" style={{ width: clamped + "%", background: color }} />
+    </div>
+  );
+}
+
+function MonthSelect({ value, onChange, months, lang, allLabel }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+      <Icon name="calendar" size={15} style={{ color: "var(--muted)" }} />
+      <select className="text-sm bg-transparent pr-1" value={value} onChange={(e) => onChange(e.target.value)} style={{ color: "var(--ink)" }}>
+        {allLabel && <option value="all">{allLabel}</option>}
+        {months.map((m) => <option key={m} value={m}>{monthLabel(m, lang)}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function LoadingScreen({ t }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-10 h-10 rounded-full border-4 animate-spin" style={{ borderColor: "var(--line)", borderTopColor: "var(--teal)" }} />
+      <p className="text-sm text-center" style={{ color: "var(--muted)" }}>{t.connecting}</p>
+    </div>
+  );
+}
+
+function ConnectionErrorScreen({ t, onRetry }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <Card className="p-6 max-w-sm text-center">
+        <Icon name="alert" size={28} className="mx-auto mb-3" style={{ color: "var(--rust)" }} />
+        <p className="font-display font-semibold text-lg mb-1">{t.connectionError}</p>
+        <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>{t.connectionErrorMsg}</p>
+        <Button onClick={onRetry} className="w-full">{t.retry}</Button>
+      </Card>
+    </div>
+  );
+}
+
+function SyncPill({ t, status }) {
+  const live = status === "ready" && FIREBASE_READY;
+  return (
+    <span className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
+      style={{ background: live ? "var(--green-soft)" : "var(--surface-2)", color: live ? "var(--green)" : "var(--muted)" }}>
+      <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: live ? "var(--green)" : "var(--muted)" }} />
+      {live ? t.liveSync : t.localOnly}
+    </span>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* LOGIN / BOOTSTRAP / NO-PROFILE SCREENS                                  */
+/* ---------------------------------------------------------------------- */
+function AuthShell({ lang, setLang, children }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "var(--bg)" }}>
+      <div className="absolute top-4 right-4">
+        <LangToggle lang={lang} setLang={setLang} />
+      </div>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-7">
+          <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3" style={{ background: "var(--teal)" }}>
+            <Icon name="wallet" size={26} className="text-white" />
+          </div>
+          <h1 className="font-display text-3xl font-semibold" style={{ color: "var(--teal)" }}>{T[lang].appName}</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{T[lang].appSub}</p>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ authSys, lang, setLang }) {
+  const t = T[lang];
+  const isFirebase = authSys.mode === "firebase";
+  const [id, setId] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function submit(e) {
+    e.preventDefault();
+    if (!id.trim() || !password) { setError(t.fillAllFields); return; }
+    setBusy(true);
+    setError("");
+    Promise.resolve(authSys.signIn(id, password))
+      .catch((code) => setError(t[code] || t.invalidLogin))
+      .finally(() => setBusy(false));
+  }
+
+  return (
+    <AuthShell lang={lang} setLang={setLang}>
+      <Card className="p-6 ledger-lines">
+        <h2 className="font-display text-lg font-semibold mb-4">{t.signIn}</h2>
+        <form onSubmit={submit}>
+          <Field label={isFirebase ? t.email : t.username}>
+            <input className={inputCls} style={inputStyle} value={id} onChange={(e) => setId(e.target.value)}
+              type={isFirebase ? "email" : "text"} autoComplete="username" />
+          </Field>
+          <Field label={t.password}>
+            <input type="password" className={inputCls} style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          </Field>
+          {error && <p className="text-sm mb-3" style={{ color: "var(--rust)" }}>{error}</p>}
+          <Button type="submit" className="w-full mt-1" size="lg" disabled={busy}>{t.login}</Button>
+        </form>
+        <p className="text-xs mt-4 text-center" style={{ color: "var(--muted)" }}>{t.loginHelp}</p>
+      </Card>
+    </AuthShell>
+  );
+}
+
+function BootstrapAdminScreen({ authSys, lang, setLang }) {
+  const t = T[lang];
+  const [form, setForm] = useState({ name: "", username: "", password: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function submit(e) {
+    e.preventDefault();
+    if (!form.name.trim() || !form.username.trim() || form.password.length < 4) { setError(t.fillAllFields); return; }
+    setBusy(true);
+    authSys.bootstrapAdmin(form).catch(() => setError(t.genericError)).finally(() => setBusy(false));
+  }
+
+  return (
+    <AuthShell lang={lang} setLang={setLang}>
+      <Card className="p-6 ledger-lines">
+        <h2 className="font-display text-lg font-semibold mb-1">{t.createAdminTitle}</h2>
+        <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>{t.createAdminSubtitle}</p>
+        <form onSubmit={submit}>
+          <Field label={t.name}>
+            <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </Field>
+          <Field label={t.username}>
+            <input className={inputCls} style={inputStyle} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </Field>
+          <Field label={t.initialPassword}>
+            <input type="password" className={inputCls} style={inputStyle} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </Field>
+          {error && <p className="text-sm mb-3" style={{ color: "var(--rust)" }}>{error}</p>}
+          <Button type="submit" className="w-full mt-1" size="lg" disabled={busy}>{t.createAccount}</Button>
+        </form>
+      </Card>
+    </AuthShell>
+  );
+}
+
+function NoProfileScreen({ t, lang, setLang, onSignOut }) {
+  return (
+    <AuthShell lang={lang} setLang={setLang}>
+      <Card className="p-6 text-center">
+        <Icon name="shield" size={28} className="mx-auto mb-3" style={{ color: "var(--gold)" }} />
+        <p className="font-display font-semibold text-lg mb-1">{t.noProfileTitle}</p>
+        <p className="text-sm mb-4" style={{ color: "var(--muted)" }}>{t.noProfileMsg}</p>
+        <Button variant="outline" className="w-full" onClick={onSignOut}>{t.signOutAndTryAnother}</Button>
+      </Card>
+    </AuthShell>
+  );
+}
+
+function LangToggle({ lang, setLang }) {
+  return (
+    <div className="inline-flex rounded-full p-1 border" style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+      {["en", "mr"].map((l) => (
+        <button key={l} onClick={() => setLang(l)}
+          className="px-3 py-1 rounded-full text-xs font-semibold transition-colors"
+          style={l === lang ? { background: "var(--teal)", color: "#fff" } : { color: "var(--muted)" }}>
+          {l === "en" ? "EN" : "मर"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChangePasswordModal({ t, authSys, onClose }) {
+  const [form, setForm] = useState({ current: "", next: "", confirm: "" });
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  function submit(e) {
+    e.preventDefault();
+    if (!form.current || form.next.length < 4) { setError(t.fillAllFields); return; }
+    if (form.next !== form.confirm) { setError(t.passwordsDontMatch); return; }
+    setBusy(true);
+    setError("");
+    Promise.resolve(authSys.changeOwnPassword(form.current, form.next))
+      .then(() => setDone(true))
+      .catch((code) => setError(t[code] || t.genericError))
+      .finally(() => setBusy(false));
+  }
+
+  return (
+    <Modal title={t.changePassword} onClose={onClose}>
+      {done ? (
+        <div className="text-center py-4">
+          <Icon name="check" size={28} className="mx-auto mb-2" style={{ color: "var(--green)" }} />
+          <p className="text-sm">{t.passwordUpdated}</p>
+          <Button className="mt-4 w-full" onClick={onClose}>{t.close}</Button>
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          <Field label={t.currentPassword}>
+            <input type="password" className={inputCls} style={inputStyle} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} autoComplete="current-password" />
+          </Field>
+          <Field label={t.newPassword}>
+            <input type="password" className={inputCls} style={inputStyle} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} autoComplete="new-password" />
+          </Field>
+          <Field label={t.confirmNewPassword}>
+            <input type="password" className={inputCls} style={inputStyle} value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} autoComplete="new-password" />
+          </Field>
+          {error && <p className="text-xs mb-3" style={{ color: "var(--rust)" }}>{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+            <Button type="submit" disabled={busy}>{t.updatePassword}</Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* LAYOUT: TOPBAR + NAV                                                    */
+/* ---------------------------------------------------------------------- */
+const NAV_ITEMS = [
+  { key: "dashboard", icon: "home" },
+  { key: "income", icon: "trendUp" },
+  { key: "expenses", icon: "trendDown" },
+  { key: "budget", icon: "target" },
+  { key: "savings", icon: "piggy" },
+  { key: "users", icon: "users", adminOnly: true },
+];
+
+function TopBar({ t, lang, setLang, user, onLogout, onMenu, syncStatus, onChangePassword }) {
+  return (
+    <div className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-16 border-b"
+      style={{ background: "var(--surface)", borderColor: "var(--line)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <div className="flex items-center gap-3">
+        <button onClick={onMenu} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-[var(--surface-2)]"><Icon name="menu" size={20} /></button>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--teal)" }}>
+          <Icon name="wallet" size={18} className="text-white" />
+        </div>
+        <div className="hidden sm:block">
+          <p className="font-display font-semibold leading-tight">{t.appName}</p>
+          <p className="text-[11px] leading-tight" style={{ color: "var(--muted)" }}>{t.appSub}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <SyncPill t={t} status={syncStatus} />
+        <LangToggle lang={lang} setLang={setLang} />
+        <div className="hidden sm:flex items-center gap-2 pl-3 border-l" style={{ borderColor: "var(--line)" }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white" style={{ background: "var(--gold)" }}>
+            {user.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+          </div>
+          <div className="leading-tight">
+            <p className="text-sm font-medium">{user.name}</p>
+            <p className="text-[11px]" style={{ color: "var(--muted)" }}>{user.role === "admin" ? t.admin : t.memberRole}</p>
+          </div>
+        </div>
+        <button onClick={onChangePassword} className="p-2 rounded-lg hover:bg-[var(--surface-2)]" title={t.changePassword}>
+          <Icon name="lock" size={18} />
+        </button>
+        <button onClick={onLogout} className="p-2 rounded-lg hover:bg-[var(--surface-2)]" title={t.logout}>
+          <Icon name="logout" size={19} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Sidebar({ t, page, setPage, isAdmin, mobileOpen, setMobileOpen }) {
+  const items = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
+  return (
+    <React.Fragment>
+      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r px-3 py-5 gap-1"
+        style={{ borderColor: "var(--line)", background: "var(--surface)" }}>
+        {items.map((item) => (
+          <button key={item.key} onClick={() => setPage(item.key)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors"
+            style={page === item.key ? { background: "var(--gold-soft)", color: "var(--teal)" } : { color: "var(--muted)" }}>
+            <Icon name={item.icon} size={18} />
+            {t[item.key]}
+          </button>
+        ))}
+      </aside>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" onMouseDown={(e) => { if (e.target === e.currentTarget) setMobileOpen(false); }}>
+          <div className="absolute inset-0 bg-black/40" />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 p-4 flex flex-col gap-1" style={{ background: "var(--surface)", paddingTop: "calc(env(safe-area-inset-top,0px) + 16px)" }}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="font-display font-semibold">{t.appName}</span>
+              <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-full hover:bg-[var(--surface-2)]"><Icon name="x" size={18} /></button>
+            </div>
+            {items.map((item) => (
+              <button key={item.key} onClick={() => { setPage(item.key); setMobileOpen(false); }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left"
+                style={page === item.key ? { background: "var(--gold-soft)", color: "var(--teal)" } : { color: "var(--muted)" }}>
+                <Icon name={item.icon} size={18} />
+                {t[item.key]}
+              </button>
+            ))}
+          </aside>
+        </div>
+      )}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden flex justify-around border-t"
+        style={{ background: "var(--surface)", borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        {items.map((item) => (
+          <button key={item.key} onClick={() => setPage(item.key)} className="flex flex-col items-center gap-0.5 py-2 px-2 flex-1"
+            style={{ color: page === item.key ? "var(--teal)" : "var(--muted)" }}>
+            <Icon name={item.icon} size={19} />
+            <span className="text-[10px] font-medium leading-tight text-center">{t[item.key]}</span>
+          </button>
+        ))}
+      </nav>
+    </React.Fragment>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* DASHBOARD                                                               */
+/* ---------------------------------------------------------------------- */
+function StatCard({ icon, label, value, sub, accent }) {
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: accent + "22" }}>
+          <Icon name={icon} size={19} style={{ color: accent }} />
+        </div>
+      </div>
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>{label}</p>
+      <p className="font-display text-2xl font-semibold mt-1" style={{ color: "var(--ink)" }}>{value}</p>
+      {sub && <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{sub}</p>}
+    </Card>
+  );
+}
+
+function Dashboard({ t, lang, data, categories }) {
+  const months3 = availableMonths([data.incomes, data.expenses]);
+  const [selMonth, setSelMonth] = useState(CURRENT_MONTH);
+  const monthIncomes = data.incomes.filter((i) => monthKey(i.date) === selMonth);
+  const monthExpenses = data.expenses.filter((e) => monthKey(e.date) === selMonth);
+  const totalIncome = monthIncomes.reduce((s, i) => s + i.amount, 0);
+  const totalExpense = monthExpenses.reduce((s, e) => s + e.amount, 0);
+  const totalBudget = Object.values(data.budgets).reduce((s, v) => s + v, 0);
+  const remaining = totalBudget - totalExpense;
+  const monthDeposits = data.savingsGoals.flatMap((g) => g.deposits).filter((d) => d.month === selMonth);
+  const totalSavings = monthDeposits.reduce((s, d) => s + d.amount, 0);
+  const usedPct = totalBudget > 0 ? (totalExpense / totalBudget) * 100 : 0;
+  const isCurrent = selMonth === CURRENT_MONTH;
+
+  const months = lastNMonths(6, selMonth).map((key) => ({
+    key,
+    income: data.incomes.filter((i) => monthKey(i.date) === key).reduce((s, i) => s + i.amount, 0),
+    expense: data.expenses.filter((e) => monthKey(e.date) === key).reduce((s, e) => s + e.amount, 0),
+  }));
+
+  const catSpend = categories.map((c) => ({
+    ...c, spent: monthExpenses.filter((e) => e.category === c.id).reduce((s, e) => s + e.amount, 0),
+  })).sort((a, b) => b.spent - a.spent);
+  const maxCat = Math.max(1, ...catSpend.map((c) => c.spent));
+
+  const recent = [...monthIncomes.map((i) => ({ ...i, type: "income" })), ...monthExpenses.map((e) => ({ ...e, type: "expense" }))]
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 6);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.dashboard}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.dashboardSubtitle}</p>
+        </div>
+        <MonthSelect value={selMonth} onChange={setSelMonth} months={months3} lang={lang} />
+      </div>
+
+      {usedPct >= 80 && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border" style={{ background: "var(--rust-soft)", borderColor: "var(--rust)" }}>
+          <Icon name="alert" size={20} style={{ color: "var(--rust)" }} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-sm" style={{ color: "var(--rust)" }}>{t.budgetAlert}</p>
+            <p className="text-sm mt-0.5" style={{ color: "var(--ink)" }}>{t.budgetAlertMsg} ({Math.round(usedPct)}% {t.ofBudgetUsed})</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard icon="trendUp" label={t.totalIncome} value={fmtINR(totalIncome)} sub={isCurrent ? t.thisMonth : monthLabel(selMonth, lang)} accent="var(--green)" />
+        <StatCard icon="trendDown" label={t.totalExpenses} value={fmtINR(totalExpense)} sub={isCurrent ? t.thisMonth : monthLabel(selMonth, lang)} accent="var(--rust)" />
+        <StatCard icon="piggy" label={t.totalSavings} value={fmtINR(totalSavings)} sub={isCurrent ? t.thisMonth : monthLabel(selMonth, lang)} accent="var(--gold)" />
+        <StatCard icon="target" label={t.remainingBudget} value={fmtINR(remaining)} sub={Math.round(usedPct) + "% " + t.ofBudgetUsed} accent="var(--teal-2)" />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-semibold text-lg">{t.monthlyTrend}</h2>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>{t.last6}</span>
+          </div>
+          <MonthlyChart months={months} lang={lang} t={t} />
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-display font-semibold text-lg mb-4">{t.categoryBreakdown}</h2>
+          <div className="space-y-3">
+            {catSpend.map((c) => (
+              <div key={c.id}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>{lang === "en" ? c.en : c.mr}</span>
+                  <span style={{ color: "var(--muted)" }}>{fmtINR(c.spent)}</span>
+                </div>
+                <ProgressBar pct={(c.spent / maxCat) * 100} color={c.color} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-5">
+        <h2 className="font-display font-semibold text-lg mb-3">{t.recentActivity}</h2>
+        {recent.length === 0 ? <EmptyState icon="calendar" text={t.noActivity} /> : (
+          <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+            {recent.map((r) => (
+              <div key={r.id} className="flex items-center justify-between py-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: r.type === "income" ? "var(--green-soft)" : "var(--rust-soft)" }}>
+                    <Icon name={r.type === "income" ? "trendUp" : "trendDown"} size={15} style={{ color: r.type === "income" ? "var(--green)" : "var(--rust)" }} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{r.description}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--muted)" }}>{r.member} · {r.date}</p>
+                  </div>
+                </div>
+                <span className="text-sm font-semibold shrink-0 ml-2" style={{ color: r.type === "income" ? "var(--green)" : "var(--rust)" }}>
+                  {r.type === "income" ? "+" : "-"}{fmtINR(r.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* INCOME PAGE                                                             */
+/* ---------------------------------------------------------------------- */
+function IncomeModal({ t, onClose, onSave, initial }) {
+  const [form, setForm] = useState(initial || { member: "", date: todayStr(), amount: "", description: "" });
+  const [err, setErr] = useState({});
+  function submit(e) {
+    e.preventDefault();
+    const e2 = {};
+    if (!form.member.trim()) e2.member = t.required;
+    if (!form.date) e2.date = t.required;
+    if (!form.amount || Number(form.amount) <= 0) e2.amount = t.positiveNumber;
+    if (Object.keys(e2).length) { setErr(e2); return; }
+    onSave({ ...form, amount: Number(form.amount), id: initial ? initial.id : uid() });
+  }
+  return (
+    <Modal title={t.addIncome} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label={t.member} error={err.member}>
+          <input className={inputCls} style={inputStyle} value={form.member} onChange={(e) => setForm({ ...form, member: e.target.value })} />
+        </Field>
+        <Field label={t.date} error={err.date}>
+          <input type="date" className={inputCls} style={inputStyle} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        </Field>
+        <Field label={t.amount} error={err.amount}>
+          <input type="number" min="0" className={inputCls} style={inputStyle} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        </Field>
+        <Field label={t.description}>
+          <input className={inputCls} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </Field>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit">{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function IncomePage({ t, lang, incomes, canEdit, onAdd, onUpdate, onDelete }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [selMonth, setSelMonth] = useState("all");
+  const months = availableMonths([incomes]);
+  const filtered = selMonth === "all" ? incomes : incomes.filter((i) => monthKey(i.date) === selMonth);
+  const sorted = [...filtered].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const total = filtered.reduce((s, i) => s + i.amount, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.income}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.incomeSubtitle}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthSelect value={selMonth} onChange={setSelMonth} months={months} lang={lang} allLabel={t.all} />
+          {canEdit && <Button onClick={() => { setEditing(null); setShowModal(true); }}><Icon name="plus" size={16} />{t.addIncome}</Button>}
+        </div>
+      </div>
+
+      {!canEdit && <ViewOnlyBanner t={t} />}
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm font-medium" style={{ color: "var(--muted)" }}>{sorted.length} {t.entriesCount}</span>
+          <span className="font-display text-lg font-semibold" style={{ color: "var(--green)" }}>{fmtINR(total)}</span>
+        </div>
+        {sorted.length === 0 ? <EmptyState icon="trendUp" text={t.noEntriesIncome} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
+                  <th className="py-2 pr-3 font-medium">{t.date}</th>
+                  <th className="py-2 pr-3 font-medium">{t.member}</th>
+                  <th className="py-2 pr-3 font-medium">{t.description}</th>
+                  <th className="py-2 pr-3 font-medium text-right">{t.amount}</th>
+                  {canEdit && <th className="py-2 pl-3 font-medium text-right">{t.actions}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((i) => (
+                  <tr key={i.id} className="border-b last:border-0" style={{ borderColor: "var(--line)" }}>
+                    <td className="py-2.5 pr-3 whitespace-nowrap" style={{ color: "var(--muted)" }}>{i.date}</td>
+                    <td className="py-2.5 pr-3 font-medium">{i.member}</td>
+                    <td className="py-2.5 pr-3" style={{ color: "var(--muted)" }}>{i.description}</td>
+                    <td className="py-2.5 pr-3 text-right font-semibold" style={{ color: "var(--green)" }}>{fmtINR(i.amount)}</td>
+                    {canEdit && (
+                      <td className="py-2.5 pl-3">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => { setEditing(i); setShowModal(true); }} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]"><Icon name="edit" size={15} /></button>
+                          <button onClick={() => setDeleting(i)} className="p-1.5 rounded-lg hover:bg-[var(--rust-soft)]" style={{ color: "var(--rust)" }}><Icon name="trash" size={15} /></button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {showModal && (
+        <IncomeModal t={t} initial={editing} onClose={() => setShowModal(false)}
+          onSave={(v) => { editing ? onUpdate(v) : onAdd(v); setShowModal(false); }} />
+      )}
+      {deleting && (
+        <ConfirmDialog t={t} onCancel={() => setDeleting(null)} onConfirm={() => { onDelete(deleting.id); setDeleting(null); }} />
+      )}
+    </div>
+  );
+}
+
+function ViewOnlyBanner({ t }) {
+  return (
+    <div className="flex items-center gap-2.5 p-3.5 rounded-xl border text-sm" style={{ background: "var(--gold-soft)", borderColor: "var(--gold)", color: "var(--ink)" }}>
+      <Icon name="eye" size={17} style={{ color: "var(--gold)" }} className="shrink-0" />
+      {t.viewOnlyBanner}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* EXPENSE PAGE                                                            */
+/* ---------------------------------------------------------------------- */
+function ExpenseModal({ t, lang, categories, onClose, onSave, initial }) {
+  const [form, setForm] = useState(initial || { member: "", date: todayStr(), amount: "", description: "", category: categories[0] ? categories[0].id : "" });
+  const [err, setErr] = useState({});
+  function submit(e) {
+    e.preventDefault();
+    const e2 = {};
+    if (!form.member.trim()) e2.member = t.required;
+    if (!form.date) e2.date = t.required;
+    if (!form.amount || Number(form.amount) <= 0) e2.amount = t.positiveNumber;
+    if (Object.keys(e2).length) { setErr(e2); return; }
+    onSave({ ...form, amount: Number(form.amount), id: initial ? initial.id : uid() });
+  }
+  return (
+    <Modal title={t.addExpense} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label={t.category}>
+          <select className={inputCls} style={inputStyle} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            {categories.map((c) => <option key={c.id} value={c.id}>{lang === "en" ? c.en : c.mr}</option>)}
+          </select>
+        </Field>
+        <Field label={t.member} error={err.member}>
+          <input className={inputCls} style={inputStyle} value={form.member} onChange={(e) => setForm({ ...form, member: e.target.value })} />
+        </Field>
+        <Field label={t.date} error={err.date}>
+          <input type="date" className={inputCls} style={inputStyle} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        </Field>
+        <Field label={t.amount} error={err.amount}>
+          <input type="number" min="0" className={inputCls} style={inputStyle} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        </Field>
+        <Field label={t.description}>
+          <input className={inputCls} style={inputStyle} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </Field>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit">{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ExpensePage({ t, lang, expenses, categories, canEdit, onAdd, onUpdate, onDelete, onOpenCategories }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [filterCat, setFilterCat] = useState("all");
+  const [selMonth, setSelMonth] = useState("all");
+  const months = availableMonths([expenses]);
+  const byMonth = selMonth === "all" ? expenses : expenses.filter((e) => monthKey(e.date) === selMonth);
+  const sorted = [...byMonth].filter((e) => filterCat === "all" || e.category === filterCat).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const total = sorted.reduce((s, i) => s + i.amount, 0);
+  const catInfo = (id) => categories.find((c) => c.id === id) || FALLBACK_CATEGORY;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.expenses}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.expenseSubtitle}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthSelect value={selMonth} onChange={setSelMonth} months={months} lang={lang} allLabel={t.all} />
+          {canEdit && <Button variant="outline" onClick={onOpenCategories}><Icon name="edit" size={15} />{t.manageCategories}</Button>}
+          {canEdit && <Button onClick={() => { setEditing(null); setShowModal(true); }}><Icon name="plus" size={16} />{t.addExpense}</Button>}
+        </div>
+      </div>
+
+      {!canEdit && <ViewOnlyBanner t={t} />}
+
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <button onClick={() => setFilterCat("all")} className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border"
+          style={filterCat === "all" ? { background: "var(--teal)", color: "#fff", borderColor: "var(--teal)" } : { borderColor: "var(--line)", color: "var(--muted)" }}>
+          {t.all}
+        </button>
+        {categories.map((c) => (
+          <button key={c.id} onClick={() => setFilterCat(c.id)} className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border"
+            style={filterCat === c.id ? { background: c.color, color: "#fff", borderColor: c.color } : { borderColor: "var(--line)", color: "var(--muted)" }}>
+            {lang === "en" ? c.en : c.mr}
+          </button>
+        ))}
+      </div>
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm font-medium" style={{ color: "var(--muted)" }}>{sorted.length} {t.entriesCount}</span>
+          <span className="font-display text-lg font-semibold" style={{ color: "var(--rust)" }}>{fmtINR(total)}</span>
+        </div>
+        {sorted.length === 0 ? <EmptyState icon="trendDown" text={t.noEntriesExpense} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
+                  <th className="py-2 pr-3 font-medium">{t.date}</th>
+                  <th className="py-2 pr-3 font-medium">{t.category}</th>
+                  <th className="py-2 pr-3 font-medium">{t.member}</th>
+                  <th className="py-2 pr-3 font-medium">{t.description}</th>
+                  <th className="py-2 pr-3 font-medium text-right">{t.amount}</th>
+                  {canEdit && <th className="py-2 pl-3 font-medium text-right">{t.actions}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((e) => {
+                  const c = catInfo(e.category);
+                  return (
+                    <tr key={e.id} className="border-b last:border-0" style={{ borderColor: "var(--line)" }}>
+                      <td className="py-2.5 pr-3 whitespace-nowrap" style={{ color: "var(--muted)" }}>{e.date}</td>
+                      <td className="py-2.5 pr-3"><Badge color={c.color} soft={c.color + "1A"}>{lang === "en" ? c.en : c.mr}</Badge></td>
+                      <td className="py-2.5 pr-3 font-medium">{e.member}</td>
+                      <td className="py-2.5 pr-3" style={{ color: "var(--muted)" }}>{e.description}</td>
+                      <td className="py-2.5 pr-3 text-right font-semibold" style={{ color: "var(--rust)" }}>{fmtINR(e.amount)}</td>
+                      {canEdit && (
+                        <td className="py-2.5 pl-3">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => { setEditing(e); setShowModal(true); }} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]"><Icon name="edit" size={15} /></button>
+                            <button onClick={() => setDeleting(e)} className="p-1.5 rounded-lg hover:bg-[var(--rust-soft)]" style={{ color: "var(--rust)" }}><Icon name="trash" size={15} /></button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {showModal && (
+        <ExpenseModal t={t} lang={lang} categories={categories} initial={editing} onClose={() => setShowModal(false)}
+          onSave={(v) => { editing ? onUpdate(v) : onAdd(v); setShowModal(false); }} />
+      )}
+      {deleting && (
+        <ConfirmDialog t={t} onCancel={() => setDeleting(null)} onConfirm={() => { onDelete(deleting.id); setDeleting(null); }} />
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* BUDGET PAGE                                                             */
+/* ---------------------------------------------------------------------- */
+function BudgetModal({ t, lang, categories, budgets, onClose, onSave }) {
+  const [form, setForm] = useState({ ...budgets });
+  return (
+    <Modal title={t.setBudget} onClose={onClose} wide>
+      <form onSubmit={(e) => { e.preventDefault(); onSave(form); }}>
+        {categories.map((c) => (
+          <Field key={c.id} label={lang === "en" ? c.en : c.mr}>
+            <input type="number" min="0" className={inputCls} style={inputStyle} value={form[c.id] || 0}
+              onChange={(e) => setForm({ ...form, [c.id]: Number(e.target.value) })} />
+          </Field>
+        ))}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit">{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function BudgetPage({ t, lang, budgets, expenses, categories, canEdit, onSaveBudgets, onOpenCategories }) {
+  const [showModal, setShowModal] = useState(false);
+  const [selMonth, setSelMonth] = useState(CURRENT_MONTH);
+  const months = availableMonths([expenses]);
+  const monthExpenses = expenses.filter((e) => monthKey(e.date) === selMonth);
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
+  const totalSpent = monthExpenses.reduce((s, e) => s + e.amount, 0);
+  const usedPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.budget}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.budgetSubtitle}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthSelect value={selMonth} onChange={setSelMonth} months={months} lang={lang} />
+          {canEdit && <Button variant="outline" onClick={onOpenCategories}><Icon name="edit" size={15} />{t.manageCategories}</Button>}
+          {canEdit && <Button onClick={() => setShowModal(true)}><Icon name="edit" size={16} />{t.setBudget}</Button>}
+        </div>
+      </div>
+
+      {!canEdit && <ViewOnlyBanner t={t} />}
+
+      {usedPct >= 80 && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border" style={{ background: "var(--rust-soft)", borderColor: "var(--rust)" }}>
+          <Icon name="alert" size={20} style={{ color: "var(--rust)" }} className="shrink-0 mt-0.5" />
+          <p className="text-sm" style={{ color: "var(--ink)" }}><strong>{t.budgetAlert}:</strong> {t.budgetAlertMsg}</p>
+        </div>
+      )}
+
+      <Card className="p-5">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-sm font-medium">{t.totalBudget}</span>
+          <span className="font-display font-semibold">{fmtINR(totalSpent)} / {fmtINR(totalBudget)}</span>
+        </div>
+        <ProgressBar pct={usedPct} color={usedPct >= 80 ? "var(--rust)" : "var(--teal)"} />
+      </Card>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        {categories.map((c) => {
+          const spent = monthExpenses.filter((e) => e.category === c.id).reduce((s, e) => s + e.amount, 0);
+          const limit = budgets[c.id] || 0;
+          const pct = limit > 0 ? (spent / limit) * 100 : 0;
+          const remaining = limit - spent;
+          return (
+            <Card key={c.id} className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-sm flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: c.color }}></span>
+                  {lang === "en" ? c.en : c.mr}
+                </span>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>{Math.round(pct)}%</span>
+              </div>
+              <ProgressBar pct={pct} color={pct >= 80 ? "var(--rust)" : c.color} />
+              <div className="flex justify-between mt-2 text-xs" style={{ color: "var(--muted)" }}>
+                <span>{t.spent}: {fmtINR(spent)}</span>
+                <span>{t.remaining}: {fmtINR(remaining)}</span>
+              </div>
+              <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{t.monthlyLimit}: {fmtINR(limit)}</p>
+            </Card>
+          );
+        })}
+      </div>
+
+      {showModal && <BudgetModal t={t} lang={lang} categories={categories} budgets={budgets} onClose={() => setShowModal(false)}
+        onSave={(v) => { onSaveBudgets(v); setShowModal(false); }} />}
+    </div>
+  );
+}
+
+function CategoryManagerModal({ t, lang, categories, expenses, onAdd, onDelete, onClose }) {
+  const [form, setForm] = useState({ en: "", mr: "", color: CATEGORY_PALETTE[0] });
+  const [err, setErr] = useState("");
+  const [blocked, setBlocked] = useState(null);
+
+  function submitAdd(e) {
+    e.preventDefault();
+    if (!form.en.trim()) { setErr(t.required); return; }
+    let id = form.en.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!id) id = uid();
+    if (categories.some((c) => c.id === id)) { setErr(t.categoryExists); return; }
+    onAdd({ id, en: form.en.trim(), mr: form.mr.trim() || form.en.trim(), color: form.color });
+    setForm({ en: "", mr: "", color: CATEGORY_PALETTE[0] });
+    setErr("");
+  }
+
+  function tryDelete(c) {
+    const count = expenses.filter((e) => e.category === c.id).length;
+    if (count > 0) { setBlocked({ name: lang === "en" ? c.en : c.mr, count }); return; }
+    onDelete(c.id);
+  }
+
+  return (
+    <Modal title={t.manageCategories} onClose={onClose} wide>
+      <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "var(--muted)" }}>{t.existingCategories}</p>
+      <div className="space-y-2 mb-5">
+        {categories.length === 0 && <p className="text-sm" style={{ color: "var(--muted)" }}>{t.noCategories}</p>}
+        {categories.map((c) => (
+          <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border" style={{ borderColor: "var(--line)" }}>
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: c.color }}></span>
+              {lang === "en" ? c.en : c.mr}
+            </span>
+            <button onClick={() => tryDelete(c)} className="p-1.5 rounded-lg hover:bg-[var(--rust-soft)]" style={{ color: "var(--rust)" }}>
+              <Icon name="trash" size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={submitAdd} className="border-t pt-4" style={{ borderColor: "var(--line)" }}>
+        <p className="text-sm font-semibold mb-3">{t.addCategory}</p>
+        <Field label={t.categoryNameEn}>
+          <input className={inputCls} style={inputStyle} value={form.en} onChange={(e) => setForm({ ...form, en: e.target.value })} />
+        </Field>
+        <Field label={t.categoryNameMr}>
+          <input className={inputCls} style={inputStyle} value={form.mr} onChange={(e) => setForm({ ...form, mr: e.target.value })} />
+        </Field>
+        <Field label={t.categoryColor}>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_PALETTE.map((col) => (
+              <button type="button" key={col} onClick={() => setForm({ ...form, color: col })}
+                className="w-7 h-7 rounded-full border-2"
+                style={{ background: col, borderColor: form.color === col ? "var(--ink)" : "transparent" }} />
+            ))}
+          </div>
+        </Field>
+        {err && <p className="text-xs mb-3" style={{ color: "var(--rust)" }}>{err}</p>}
+        <Button type="submit" size="sm"><Icon name="plus" size={14} />{t.addCategory}</Button>
+      </form>
+
+      {blocked && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setBlocked(null); }}>
+          <div className="bg-[var(--surface)] rounded-2xl p-5 max-w-sm w-full" style={{ boxShadow: "var(--shadow)" }}>
+            <div className="flex items-start gap-3 mb-4">
+              <Icon name="alert" size={22} style={{ color: "var(--rust)" }} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">{t.cannotDeleteCategory}</p>
+                <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+                  <strong style={{ color: "var(--ink)" }}>{blocked.name}</strong> — {blocked.count} {t.recordsUsingCategory}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end"><Button size="sm" onClick={() => setBlocked(null)}>{t.close}</Button></div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* SAVINGS PAGE                                                            */
+/* ---------------------------------------------------------------------- */
+function GoalModal({ t, onClose, onSave }) {
+  const [form, setForm] = useState({ name_en: "", name_mr: "", target: "" });
+  const [err, setErr] = useState({});
+  function submit(e) {
+    e.preventDefault();
+    const e2 = {};
+    if (!form.name_en.trim()) e2.name_en = t.required;
+    if (!form.target || Number(form.target) <= 0) e2.target = t.positiveNumber;
+    if (Object.keys(e2).length) { setErr(e2); return; }
+    onSave({ id: uid(), name_en: form.name_en, name_mr: form.name_mr || form.name_en, target: Number(form.target), deposits: [] });
+  }
+  return (
+    <Modal title={t.addNewGoal} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label={t.goal + " (EN)"} error={err.name_en}>
+          <input className={inputCls} style={inputStyle} value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
+        </Field>
+        <Field label={t.goal + " (मराठी)"}>
+          <input className={inputCls} style={inputStyle} value={form.name_mr} onChange={(e) => setForm({ ...form, name_mr: e.target.value })} />
+        </Field>
+        <Field label={t.target} error={err.target}>
+          <input type="number" min="0" className={inputCls} style={inputStyle} value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} />
+        </Field>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit">{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function DepositModal({ t, goal, onClose, onSave }) {
+  const [form, setForm] = useState({ amount: "", date: todayStr() });
+  const [err, setErr] = useState({});
+  function submit(e) {
+    e.preventDefault();
+    if (!form.amount || Number(form.amount) <= 0) { setErr({ amount: t.positiveNumber }); return; }
+    onSave(goal.id, { id: uid(), amount: Number(form.amount), date: form.date, month: form.date.slice(0, 7) });
+  }
+  return (
+    <Modal title={t.addDeposit + " — " + goal.name_en} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label={t.date}>
+          <input type="date" className={inputCls} style={inputStyle} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        </Field>
+        <Field label={t.amount} error={err.amount}>
+          <input type="number" min="0" className={inputCls} style={inputStyle} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        </Field>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit">{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function SavingsPage({ t, lang, goals, canEdit, onAddGoal, onAddDeposit, onDeleteGoal }) {
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [depositFor, setDepositFor] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.savings}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.savingsSubtitle}</p>
+        </div>
+        {canEdit && <Button onClick={() => setShowGoalModal(true)}><Icon name="plus" size={16} />{t.addGoal}</Button>}
+      </div>
+
+      {!canEdit && <ViewOnlyBanner t={t} />}
+
+      {goals.length === 0 ? (
+        <Card className="p-5"><EmptyState icon="piggy" text={t.noGoals} /></Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {goals.map((g) => {
+            const saved = g.deposits.reduce((s, d) => s + d.amount, 0);
+            const pct = (saved / g.target) * 100;
+            const reached = saved >= g.target;
+            return (
+              <Card key={g.id} className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-display font-semibold text-lg">{lang === "en" ? g.name_en : g.name_mr}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{g.deposits.length} {t.deposits.toLowerCase()}</p>
+                  </div>
+                  {canEdit && (
+                    <button onClick={() => setDeleting(g)} className="p-1.5 rounded-lg hover:bg-[var(--rust-soft)]" style={{ color: "var(--rust)" }}>
+                      <Icon name="trash" size={15} />
+                    </button>
+                  )}
+                </div>
+                <ProgressBar pct={pct} color={reached ? "var(--green)" : "var(--gold)"} />
+                <div className="flex justify-between mt-2 text-sm">
+                  <span style={{ color: "var(--muted)" }}>{t.saved}: <strong style={{ color: "var(--ink)" }}>{fmtINR(saved)}</strong></span>
+                  <span style={{ color: "var(--muted)" }}>{t.target}: {fmtINR(g.target)}</span>
+                </div>
+                {reached && <Badge color="var(--green)" soft="var(--green-soft)"><span className="flex items-center gap-1"><Icon name="check" size={12} />{t.goalReached}</span></Badge>}
+                {canEdit && (
+                  <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setDepositFor(g)}>
+                    <Icon name="plus" size={14} />{t.addDeposit}
+                  </Button>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {showGoalModal && <GoalModal t={t} onClose={() => setShowGoalModal(false)} onSave={(g) => { onAddGoal(g); setShowGoalModal(false); }} />}
+      {depositFor && <DepositModal t={t} goal={depositFor} onClose={() => setDepositFor(null)} onSave={(gid, dep) => { onAddDeposit(gid, dep); setDepositFor(null); }} />}
+      {deleting && <ConfirmDialog t={t} onCancel={() => setDeleting(null)} onConfirm={() => { onDeleteGoal(deleting.id); setDeleting(null); }} />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* USERS PAGE (ADMIN ONLY)                                                 */
+/* ---------------------------------------------------------------------- */
+function UserModal({ t, mode, onClose, onSave, initial }) {
+  const isFirebase = mode === "firebase";
+  const [form, setForm] = useState(initial || { name: "", username: "", email: "", password: "", role: "member", permission: "view" });
+  const [err, setErr] = useState({});
+  const [busy, setBusy] = useState(false);
+  const idKey = isFirebase ? "email" : "username";
+
+  function submit(e) {
+    e.preventDefault();
+    const e2 = {};
+    if (!form.name.trim()) e2.name = t.required;
+    if (!form[idKey] || !form[idKey].trim()) e2[idKey] = t.required;
+    if (!initial && (!form.password || form.password.length < (isFirebase ? 6 : 4))) e2.password = isFirebase ? t.weakPassword : t.required;
+    if (Object.keys(e2).length) { setErr(e2); return; }
+    setBusy(true);
+    setErr({});
+    Promise.resolve(onSave({ ...form, id: initial ? initial.id : uid() }))
+      .then(() => onClose())
+      .catch((code) => setErr({ [idKey]: t[code] || t.genericError }))
+      .finally(() => setBusy(false));
+  }
+
+  return (
+    <Modal title={initial ? t.editUser : t.newUser} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label={t.name} error={err.name}>
+          <input className={inputCls} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </Field>
+        <Field label={isFirebase ? t.email : t.username} error={err[idKey]}>
+          <input className={inputCls} style={inputStyle} type={isFirebase ? "email" : "text"} value={form[idKey] || ""} disabled={!!initial}
+            onChange={(e) => setForm({ ...form, [idKey]: e.target.value })} />
+        </Field>
+        {!initial && (
+          <Field label={isFirebase ? t.initialPassword : t.password} error={err.password}>
+            <input type="password" className={inputCls} style={inputStyle} value={form.password || ""} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            {isFirebase && <span className="block text-xs mt-1" style={{ color: "var(--muted)" }}>{t.initialPasswordHint}</span>}
+          </Field>
+        )}
+        <Field label={t.role}>
+          <select className={inputCls} style={inputStyle} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <option value="member">{t.memberRole}</option>
+            <option value="admin">{t.admin}</option>
+          </select>
+        </Field>
+        <Field label={t.permission}>
+          <select className={inputCls} style={inputStyle} value={form.permission} onChange={(e) => setForm({ ...form, permission: e.target.value })}>
+            <option value="edit">{t.editAdd}</option>
+            <option value="view">{t.viewOnlyPerm}</option>
+          </select>
+        </Field>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" type="button" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit" disabled={busy}>{t.save}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function UsersPage({ t, mode, users, currentUser, onAdd, onUpdate, onDelete, onResetPassword }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [resetSentFor, setResetSentFor] = useState(null);
+  const isFirebase = mode === "firebase";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">{t.users}</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{t.usersSubtitle}</p>
+        </div>
+        <Button onClick={() => { setEditing(null); setShowModal(true); }}><Icon name="plus" size={16} />{t.addUser}</Button>
+      </div>
+
+      <Card className="p-4 sm:p-5">
+        {users.length === 0 ? <EmptyState icon="users" text={t.noUsersYet} /> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
+                  <th className="py-2 pr-3 font-medium">{t.name}</th>
+                  <th className="py-2 pr-3 font-medium">{isFirebase ? t.email : t.username}</th>
+                  <th className="py-2 pr-3 font-medium">{t.role}</th>
+                  <th className="py-2 pr-3 font-medium">{t.permission}</th>
+                  <th className="py-2 pl-3 font-medium text-right">{t.actions}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b last:border-0" style={{ borderColor: "var(--line)" }}>
+                    <td className="py-2.5 pr-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0" style={{ background: "var(--gold)" }}>
+                          {u.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                        </div>
+                        <span>{u.name}{u.id === currentUser.id && <span className="text-xs ml-1" style={{ color: "var(--muted)" }}>({t.myAccount})</span>}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 pr-3" style={{ color: "var(--muted)" }}>{isFirebase ? u.email : u.username}</td>
+                    <td className="py-2.5 pr-3">
+                      <Badge color={u.role === "admin" ? "var(--teal)" : "var(--ink)"} soft={u.role === "admin" ? "var(--gold-soft)" : "var(--surface-2)"}>
+                        {u.role === "admin" ? t.admin : t.memberRole}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <Badge color={u.permission === "edit" ? "var(--green)" : "var(--muted)"} soft={u.permission === "edit" ? "var(--green-soft)" : "var(--surface-2)"}>
+                        {u.permission === "edit" ? t.editAdd : t.viewOnlyPerm}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 pl-3">
+                      <div className="flex justify-end items-center gap-1">
+                        {isFirebase && resetSentFor === u.id && (
+                          <span className="text-[11px] mr-1" style={{ color: "var(--green)" }}>{t.resetPasswordSent}</span>
+                        )}
+                        {isFirebase && (
+                          <button onClick={() => { Promise.resolve(onResetPassword(u.email)).then(() => setResetSentFor(u.id)).catch(() => {}); }}
+                            className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]" title={t.resetPassword}>
+                            <Icon name="lock" size={15} />
+                          </button>
+                        )}
+                        <button onClick={() => { setEditing(u); setShowModal(true); }} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]" title={t.edit}><Icon name="edit" size={15} /></button>
+                        {u.id !== currentUser.id && (
+                          <button onClick={() => setDeleting(u)} className="p-1.5 rounded-lg hover:bg-[var(--rust-soft)]" title={t.removeAccess} style={{ color: "var(--rust)" }}><Icon name="trash" size={15} /></button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {showModal && (
+        <UserModal t={t} mode={mode} initial={editing} onClose={() => setShowModal(false)}
+          onSave={(v) => (editing ? onUpdate(v) : onAdd(v))} />
+      )}
+      {deleting && (
+        <ConfirmDialog t={{ ...t, confirmDeleteTitle: t.confirmRemoveTitle, confirmDeleteMsg: t.confirmRemoveMsg, delete: t.removeAccess }}
+          onCancel={() => setDeleting(null)} onConfirm={() => { onDelete(deleting.id); setDeleting(null); }} />
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* ROOT APP                                                                */
+/* ---------------------------------------------------------------------- */
+function App() {
+  const authSys = useAuthSystem();
+  const dataEnabled = authSys.mode === "local" ? true : authSys.status === "ready";
+  const { data, setData, status } = useSharedData(dataEnabled);
+  const [lang, setLang] = useState("en");
+  const [page, setPage] = useState("dashboard");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const t = T[lang];
+
+  if (authSys.status === "loading") return <LoadingScreen t={t} />;
+  if (authSys.status === "needsBootstrap") return <BootstrapAdminScreen authSys={authSys} lang={lang} setLang={setLang} />;
+  if (authSys.status === "signedOut") return <LoginScreen authSys={authSys} lang={lang} setLang={setLang} />;
+  if (authSys.status === "noProfile") return <NoProfileScreen t={t} lang={lang} setLang={setLang} onSignOut={authSys.signOut} />;
+  if (authSys.status === "error" || status === "error") return <ConnectionErrorScreen t={t} onRetry={() => window.location.reload()} />;
+  if (!data) return <LoadingScreen t={t} />;
+
+  const currentUser = authSys.currentUser;
+  const { incomes, expenses, budgets, savingsGoals, categories } = data;
+  const patch = (fn) => setData((prev) => fn(prev));
+
+  const isAdmin = currentUser && currentUser.role === "admin";
+  const canEdit = currentUser && (currentUser.role === "admin" || currentUser.permission === "edit");
+  const pageProps = { t, lang, canEdit };
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+      <TopBar t={t} lang={lang} setLang={setLang} user={currentUser} onLogout={authSys.signOut}
+        onMenu={() => setMobileOpen(true)} syncStatus={status} onChangePassword={() => setShowChangePassword(true)} />
+      <div className="flex flex-1 min-h-0">
+        <Sidebar t={t} page={page} setPage={setPage} isAdmin={isAdmin} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <main className="flex-1 min-w-0 px-4 sm:px-6 py-6 pb-24 md:pb-6 max-w-6xl mx-auto w-full">
+          {page === "dashboard" && <Dashboard t={t} lang={lang} categories={categories} data={{ incomes, expenses, budgets, savingsGoals }} />}
+          {page === "income" && (
+            <IncomePage {...pageProps} incomes={incomes}
+              onAdd={(v) => patch((d) => ({ ...d, incomes: [...d.incomes, v] }))}
+              onUpdate={(v) => patch((d) => ({ ...d, incomes: d.incomes.map((i) => (i.id === v.id ? v : i)) }))}
+              onDelete={(id) => patch((d) => ({ ...d, incomes: d.incomes.filter((i) => i.id !== id) }))} />
+          )}
+          {page === "expenses" && (
+            <ExpensePage {...pageProps} expenses={expenses} categories={categories} onOpenCategories={() => setShowCategoryManager(true)}
+              onAdd={(v) => patch((d) => ({ ...d, expenses: [...d.expenses, v] }))}
+              onUpdate={(v) => patch((d) => ({ ...d, expenses: d.expenses.map((e) => (e.id === v.id ? v : e)) }))}
+              onDelete={(id) => patch((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))} />
+          )}
+          {page === "budget" && (
+            <BudgetPage {...pageProps} budgets={budgets} expenses={expenses} categories={categories}
+              onOpenCategories={() => setShowCategoryManager(true)}
+              onSaveBudgets={(b) => patch((d) => ({ ...d, budgets: b }))} />
+          )}
+          {page === "savings" && (
+            <SavingsPage {...pageProps} goals={savingsGoals}
+              onAddGoal={(g) => patch((d) => ({ ...d, savingsGoals: [...d.savingsGoals, g] }))}
+              onAddDeposit={(gid, dep) => patch((d) => ({ ...d, savingsGoals: d.savingsGoals.map((g) => (g.id === gid ? { ...g, deposits: [...g.deposits, dep] } : g)) }))}
+              onDeleteGoal={(id) => patch((d) => ({ ...d, savingsGoals: d.savingsGoals.filter((g) => g.id !== id) }))} />
+          )}
+          {page === "users" && isAdmin && (
+            <UsersPage t={t} mode={authSys.mode} users={authSys.usersList || []} currentUser={currentUser}
+              onAdd={authSys.addUser} onUpdate={authSys.updateUser} onDelete={authSys.deleteUser}
+              onResetPassword={authSys.resetPasswordEmail} />
+          )}
+        </main>
+      </div>
+      {showCategoryManager && (
+        <CategoryManagerModal t={t} lang={lang} categories={categories} expenses={expenses}
+          onAdd={(c) => patch((d) => ({ ...d, categories: [...d.categories, c], budgets: { ...d.budgets, [c.id]: 0 } }))}
+          onDelete={(id) => patch((d) => { const b = { ...d.budgets }; delete b[id]; return { ...d, categories: d.categories.filter((c) => c.id !== id), budgets: b }; })}
+          onClose={() => setShowCategoryManager(false)} />
+      )}
+      {showChangePassword && <ChangePasswordModal t={t} authSys={authSys} onClose={() => setShowChangePassword(false)} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
